@@ -183,11 +183,12 @@ def test_t3_3_scenarios_route_returns_exactly_the_three_canonical_fixtures():
     red-teamer's variants — each with the documented fields and S2's
     `stages == 2`.
 
-    S3 was dropped from the picker: it is the same shape as S1 (untrusted
-    text naming a tool) and the live model declines it outright, so it filled
-    a slot with an agent that searches and stops. S4 (a legitimate action the
-    defense refuses) and S5 (an injection in a field the trust map calls
-    internal) took its place. S3 remains a CI fixture and a red-team target.
+    The picker carries the two attacks. S3, S4 and S5 are deliberately not in
+    it (D-067, D-077): S3 is the same shape as S1 and the live model declines
+    it outright; S4 shows what D3 costs on a legitimate action and S5 shows
+    all three defenses staying blind, and both were judged to raise more
+    questions on screen than they answered. All three remain CI fixtures,
+    matrix rows and red-team targets, and S4/S5 keep their recordings.
     """
     client = _client()
     r = client.get("/api/scenarios")
@@ -196,7 +197,7 @@ def test_t3_3_scenarios_route_returns_exactly_the_three_canonical_fixtures():
     assert isinstance(body, list)
 
     ids = sorted(s["id"] for s in body)
-    assert ids == ["S1", "S2", "S4", "S5"], f"got {ids!r}"
+    assert ids == ["S1", "S2"], f"got {ids!r}"
 
     by_id = {s["id"]: s for s in body}
     required_keys = {

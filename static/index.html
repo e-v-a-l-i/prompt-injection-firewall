@@ -58,6 +58,12 @@
   details.explain > summary { cursor: pointer; list-style-position: outside; }
   details.explain[open] > summary { margin-bottom: 2px; }
   ul.notes { margin: 6px 0 0; padding-left: 18px; }
+  .watch {
+    margin: 14px 0 0; padding: 10px 14px; background: var(--card);
+    border: 1px solid var(--line); border-left: 3px solid var(--accent);
+    border-radius: 0 8px 8px 0; font-size: .92rem; line-height: 1.5;
+  }
+  .watch:empty { display: none; }
   .cmp-wrap { overflow-x: auto; margin: 10px 0 2px; }
   table.cmp { border-collapse: collapse; font-size: .76rem; color: var(--muted); min-width: 430px; }
   table.cmp th, table.cmp td {
@@ -167,9 +173,9 @@
       </div>
       <div class="row toggles" id="toggles">
         <span class="hint">Defenses for the right column:</span>
-        <label class="toggle"><input type="checkbox" id="d1" checked> D1 untrusted LLM-tagging</label>
-        <label class="toggle"><input type="checkbox" id="d2" checked> D2 memory gate, human in the loop</label>
-        <label class="toggle"><input type="checkbox" id="d3" checked> D3 autonomous SOC</label>
+        <label class="toggle"><input type="checkbox" id="d1" checked> D1 LLM-tagging defense</label>
+        <label class="toggle"><input type="checkbox" id="d2" checked> D2 human-in-loop defense</label>
+        <label class="toggle"><input type="checkbox" id="d3" checked> D3 autonomous defense</label>
       </div>
     </div>
     <p class="hint" id="scenario-note"></p>
@@ -206,6 +212,8 @@
     </div>
     </details>
   </section>
+
+  <p class="watch" id="scenario-watch"></p>
 
   <div class="grid">
     <section class="col">
@@ -712,19 +720,7 @@
       post: "The first alert saved a stranger's claim as a permanent fact. The " +
             "second alert — a real credential theft — was waved through because " +
             "of it. Nothing attacked the second run. It just believed what the " +
-            "first one filed." },
-    { id: "S4",
-      pre: "No attacker in this one at all. This is the company's own scanner, " +
-           "and closing the alert is the correct answer.",
-      post: "Left got it right. Right refused a legitimate action — because " +
-            "stranger-written text exists somewhere in the evidence, which is " +
-            "true for 25 of the 26 alerts here. This is what the defense costs." },
-    { id: "S5",
-      pre: "The first attack again, moved one field sideways — into text our own " +
-           "system writes, but which copies the visitor's words into it.",
-      post: "Every defense on, and the attack still works. Not bypassed: never " +
-            "engaged. All three hang off one label — was this written by us, or " +
-            "by a stranger — and that label was wrong." }
+            "first one filed." }
   ];
 
   var inFlight = 0;
@@ -818,7 +814,7 @@
     describeMode();
     ["d1", "d2", "d3"].forEach(function (id) { byId(id).checked = true; });
     byId("defended-label").textContent = defendedLabel();
-    showCaption("Starting", "Four cases, hands-free. Every run below is a real " +
+    showCaption("Starting", "Both cases, hands-free. Every run below is a real " +
       "model run, recorded earlier — the defenses are executing live on top of it.");
     setTimeout(autoplayNext, 2500);
   }
@@ -852,6 +848,7 @@
       note += " · runs as two alerts in sequence";
     }
     byId("scenario-note").textContent = note;
+    byId("scenario-watch").textContent = scenario.watch_for || "";
   }
 
   boot();

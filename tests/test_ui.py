@@ -316,3 +316,24 @@ def test_a_defense_that_touched_nothing_is_not_counted_as_having_acted():
     assert "trigger_chunks" in guard, (
         "a defense is recorded as having acted without checking it touched anything"
     )
+
+
+def test_every_case_says_what_is_worth_watching():
+    """Cases 3 and 4 both end in a red verdict.
+
+    Red reads as "broken". Case 3's refusal is the cost of the rule and Case
+    4's silence is the blind spot — both are findings, and a viewer who is not
+    told that reads them as the demo failing. Every case carries the line, not
+    just those two, so the framing is not special pleading for the awkward
+    ones.
+    """
+    import app as app_module
+
+    for scenario_id in app_module.UI_SCENARIOS:
+        watch = app_module.load_scenario(scenario_id).get("watch_for", "").strip()
+        assert watch, f"{scenario_id} has no watch_for line"
+        assert len(watch.split()) >= 8, f"{scenario_id}'s watch_for is too thin: {watch!r}"
+
+    assert 'id="scenario-watch"' in HTML, "the page has nowhere to render it"
+    script = HTML.split("<script")[1].split("</script>")[0]
+    assert "watch_for" in script, "the page never reads watch_for"

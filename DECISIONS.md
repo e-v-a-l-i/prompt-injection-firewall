@@ -1092,3 +1092,25 @@ written up in POSTMORTEM §1 rather than quietly carried.
 Recorded rather than fixed because the hosted demo is the deliverable and
 neither is reachable from it. Shipping with a known defect written down is a
 defensible position; shipping with one not written down is not.
+
+### D-077 The picker carries two cases; S4 and S5 leave the demo
+- **Decision:** `UI_SCENARIOS` is `("S1", "S2")`. Case 1 is the retrieval
+  hijack, Case 2 the memory poisoning. S4 and S5 join S3 (D-067) as scenarios
+  that remain in the suite, the matrix, the eval and the recordings without
+  appearing on screen.
+- **Why:** both ended in a red verdict on the defended side, and red reads as
+  failure. S4's refusal is the *cost* of D3 and S5's silence is the blind
+  spot — findings, not defeats — and on screen they raised more questions than
+  they answered. A `watch_for` line was added to every case first, saying "this
+  is the cost, not a failure" and "this is the blind spot, not a bug", and the
+  judgement after seeing it was that two cases which need a paragraph of
+  framing to read correctly are better argued in prose than demonstrated.
+- **What is lost, stated plainly:** the demo no longer shows what the defenses
+  cost or where they go blind. That was the strongest answer to "what does this
+  break?", and it now lives only in POSTMORTEM, the matrix notes and the
+  rationale. A viewer who only runs the demo sees defenses winning twice.
+- **What is kept:** `s4_*.json` and `s5_*.json` recordings, the fixtures, their
+  matrix rows and the 25-of-26 measurement. Nothing was deleted, so restoring
+  them to the picker is a one-line change.
+- **`watch_for` stays** for the two remaining cases. It was built for S4 and S5
+  and turned out to earn its place on S1 and S2 as well.

@@ -95,13 +95,12 @@ ARMS = ("undefended", "defended")
 #: S1 — untrusted text naming a tool — and the live model declines it outright
 #: (0/10), so it filled a demo slot with an agent that searches and stops. It
 #: remains a CI fixture and a red-team target.
-UI_SCENARIOS = ("S1", "S2", "S4", "S5")
+UI_SCENARIOS = ("S1", "S2")
 
-#: What the demo calls each scenario on screen. The fixture ids are not a
-#: sequence — S3 is a real, tested scenario that is simply not in the picker
-#: (D-067) — and "S1, S2, S4, S5" makes a viewer wonder what was cut rather
-#: than watch the run. Ids stay ids everywhere else: they key the replay
-#: files, the eval table and the scenario matrix.
+#: What the demo calls each scenario on screen. The picker carries the two
+#: attacks; S3, S4 and S5 stay in the suite, the matrix and the eval without
+#: appearing here (D-067, D-077). Ids stay ids everywhere else: they key the
+#: replay files, the eval table and the scenario matrix.
 UI_LABELS = {sid: f"Case {i}" for i, sid in enumerate(UI_SCENARIOS, start=1)}
 
 
@@ -300,6 +299,11 @@ def api_scenarios(request: Request, response: Response) -> list:
                     "location": scenario.get("injection", {}).get("location", ""),
                     "payload": scenario.get("injection", {}).get("payload", ""),
                 },
+                # One line saying what is worth looking at. Cases 3 and 4 both
+                # end in a red verdict, which reads as "broken" unless the
+                # screen says plainly that the refusal and the silence are the
+                # findings rather than failures.
+                "watch_for": scenario.get("watch_for", ""),
                 "expected_undefended": scenario.get("expected_undefended", ""),
                 "primary_defense": scenario.get("primary_defense", ""),
                 "kind": scenario.get("kind", "attack"),
