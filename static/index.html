@@ -39,8 +39,8 @@
      an empty pill reads as a stray dot beside the heading. */
   .badge:empty { display: none; }
   .verdict-line { font-size: .84rem; margin-top: 2px; }
-  .verdict-line.ok { color: var(--ok); }
-  .verdict-line.bad { color: var(--danger); }
+  .verdict-line { color: var(--fg); }
+  .verdict-line.todo { color: var(--accent); }
   button, select {
     font: inherit; color: inherit; background: var(--card);
     border: 1px solid var(--line); border-radius: 7px; padding: 6px 11px;
@@ -61,19 +61,6 @@
   details.explain > summary { cursor: pointer; list-style-position: outside; }
   details.explain[open] > summary { margin-bottom: 2px; }
   ul.notes { margin: 6px 0 0; padding-left: 18px; }
-  .watch {
-    margin: 14px 0 0; padding: 10px 14px; background: var(--card);
-    border: 1px solid var(--line); border-left: 3px solid var(--accent);
-    border-radius: 0 8px 8px 0; font-size: .92rem; line-height: 1.5;
-  }
-  .watch:empty { display: none; }
-  .cmp-wrap { overflow-x: auto; margin: 10px 0 2px; }
-  table.cmp { border-collapse: collapse; font-size: .76rem; color: var(--muted); min-width: 430px; }
-  table.cmp th, table.cmp td {
-    border: 1px solid var(--line); padding: 4px 8px; text-align: left; vertical-align: top;
-  }
-  table.cmp thead th { color: var(--fg); font-weight: 600; }
-  table.cmp tbody th { color: var(--fg); font-weight: 500; white-space: nowrap; }
   ul.notes li { margin: 3px 0; line-height: 1.45; }
   .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 14px; }
   .col { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 12px; min-width: 0; }
@@ -176,47 +163,27 @@
       </div>
       <div class="row toggles" id="toggles">
         <span class="hint">Defenses for the right column:</span>
-        <label class="toggle"><input type="checkbox" id="d1" checked> D1 LLM-tagging defense</label>
-        <label class="toggle"><input type="checkbox" id="d2" checked> D2 human-in-loop defense</label>
-        <label class="toggle"><input type="checkbox" id="d3" checked> D3 autonomous defense</label>
+        <label class="toggle"><input type="checkbox" id="d1" checked> D1 Defense based on tags</label>
+        <label class="toggle"><input type="checkbox" id="d2" checked> D2 Defense based on human review</label>
+        <label class="toggle"><input type="checkbox" id="d3" checked> D3 Defense based on corporate context</label>
       </div>
     </div>
     <p class="hint" id="scenario-note"></p>
     <details class="explain" open>
       <summary class="hint">What each defense does</summary>
     <ul class="hint notes">
-      <li><strong>D1</strong> marks text that came from outside and tells the
-        model not to take orders from it. It cannot stop anything — it can only
-        ask, and the text reaches the model word for word.</li>
-      <li><strong>D2</strong> catches a fact the agent picked up while outside
-        text was in view and holds it for you instead of remembering it.
-        Nothing is thrown away — you approve it or reject it below.</li>
-      <li><strong>D3</strong> refuses a dangerous action outright while outside
-        text is in view, even when the action was the right one. It raises an
-        approval request; until an approver is connected, a refused action
-        stays refused.</li>
+      <li><strong>D1 Defense based on tags:</strong> Mark the injected prompt as
+        &ldquo;suspicious&rdquo; and leave LLM to decide whether to accept or
+        reject the injected information.</li>
+      <li><strong>D2 Defense based on human review:</strong> Have human decide
+        whether to approve or disallow the injected information to be
+        considered for the current run and memorized for future runs.</li>
+      <li><strong>D3 Defense based on corporate context:</strong> By integrating
+        with existing context, autonomous SOC can approve or reject the
+        injected information without human intervention.</li>
     </ul>
-    <div class="cmp-wrap">
-      <table class="cmp">
-        <thead>
-          <tr><th scope="col"></th><th scope="col">D1</th><th scope="col">D2</th><th scope="col">D3</th></tr>
-        </thead>
-        <tbody>
-          <tr><th scope="row">Defense outcome</th>
-              <td>tagged as “suspicious”</td>
-              <td>memory poisoning rejected</td>
-              <td>autonomous remediation blocked</td></tr>
-          <tr><th scope="row">Determined by</th>
-              <td>the model</td>
-              <td>a human</td>
-              <td>the agent and enterprise context</td></tr>
-        </tbody>
-      </table>
-    </div>
     </details>
   </section>
-
-  <p class="watch" id="scenario-watch"></p>
 
   <div class="grid">
     <section class="col">
@@ -236,10 +203,13 @@
   </div>
 
   <section class="panel">
-    <div class="row spread">
-      <h2>What the agent remembered</h2>
-      <span class="hint">Both columns. Long-term facts are recalled by a later run; quarantined ones are not.</span>
-    </div>
+    <h2>Agent Memory Updates</h2>
+    <ul class="hint notes">
+      <li><strong>Auto-update</strong> · automatically saved in long-term memory —
+        a later run will recall it</li>
+      <li><strong>Action-needed</strong> · held for review — if reject, a later run
+        will not see it</li>
+    </ul>
     <div id="quarantine"><p class="empty">Nothing saved yet.</p></div>
   </section>
 
@@ -455,8 +425,8 @@
                   (event.defense.trigger_chunks || []).length > 0;
       // Only when it did something to something. D1 emits its annotation on
       // every retrieval it is enabled for, with an empty trigger_chunks when
-      // there was nothing untrusted to wrap — Case 4 is exactly that, because
-      // the trust map calls the injected field internal. Counting that as
+      // there was nothing untrusted to wrap — S5 is exactly that, because the
+      // trust map calls its injected field internal. Counting that as
       // "D1 acted" would let the verdict tell a viewer D1 tagged text it
       // never touched, which is the overstatement the third verdict exists
       // to avoid.
@@ -585,13 +555,14 @@
     records.forEach(function (record) {
       var box = el("div", "record");
       box.appendChild(el("div", null, record.content));
-      var kept = record.tier === "quarantine"
-        ? "held for review — a later run will not see it"
-        : "in long-term memory — a later run will recall it";
-      box.appendChild(el("div", "verdict-line " + (record.tier === "quarantine" ? "ok" : "bad"),
-                         arm + " · " + kept));
-      box.appendChild(el("div", "hint", record.tier + " · " + record.status +
-        " · trust: " + record.trust));
+      // The legend above the panel carries the meaning; the row names its
+      // state. Deliberately not colour-coded as good and bad: an auto-update
+      // is frequently an accurate summary, and calling it an alert would say
+      // "danger" about a true sentence.
+      box.appendChild(el("div", "verdict-line " + (record.tier === "quarantine" ? "todo" : ""),
+                         record.tier === "quarantine" ? "Action-needed" : "Auto-update"));
+      box.appendChild(el("div", "hint", arm + " · " + record.tier + " · " +
+        record.status + " · trust: " + record.trust));
       if ((record.provenance || []).length) {
         box.appendChild(el("div", "hint mono", "from: " + record.provenance.slice(0, 3).join(", ")));
       }
@@ -849,14 +820,12 @@
       note = "Injected into " + where + " — a field the trust map calls internal, " +
              "so no defense ever engages. Both columns are expected to go red.";
     } else {
-      note = "Injected into " + where + " · primary defense " +
-             scenario.primary_defense;
+      note = "Injected into " + where;
     }
     if (scenario.stages > 1) {
       note += " · runs as two alerts in sequence";
     }
     byId("scenario-note").textContent = note;
-    byId("scenario-watch").textContent = scenario.watch_for || "";
   }
 
   boot();

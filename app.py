@@ -299,11 +299,6 @@ def api_scenarios(request: Request, response: Response) -> list:
                     "location": scenario.get("injection", {}).get("location", ""),
                     "payload": scenario.get("injection", {}).get("payload", ""),
                 },
-                # One line saying what is worth looking at. Cases 3 and 4 both
-                # end in a red verdict, which reads as "broken" unless the
-                # screen says plainly that the refusal and the silence are the
-                # findings rather than failures.
-                "watch_for": scenario.get("watch_for", ""),
                 "expected_undefended": scenario.get("expected_undefended", ""),
                 "primary_defense": scenario.get("primary_defense", ""),
                 "kind": scenario.get("kind", "attack"),

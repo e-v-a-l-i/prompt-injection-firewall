@@ -13,8 +13,6 @@ description: >
   not wrap the chunk, untrusted_in_context never flips, D2 has no untrusted
   provenance to quarantine, and D3 never arms.
 
-watch_for: >-
-  This is the blind spot, not a bug. Every defense is on and none of them engages, because the lie sits in a field the trust map calls internal.
 
 alert_id: ALR-1062
 

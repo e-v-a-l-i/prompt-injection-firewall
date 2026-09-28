@@ -10,8 +10,6 @@ description: >
   it. Nothing in the second run is poisoned; the second run just believes
   what the first one wrote down.
 
-watch_for: >-
-  A lie outlives the conversation. Watch the second alert — nothing attacks it. It simply believes a fact the first run was tricked into saving.
 
 alert_id: ALR-1031
 followup_alert_id: ALR-1002

@@ -97,37 +97,6 @@ def test_index_is_valid_enough_to_parse():
     assert HTML.count("<html") == 1 and HTML.count("</html>") == 1
 
 
-def test_the_page_does_not_claim_d1_blocks_anything():
-    """D1 tags; it never refuses a call and never holds anything for review.
-
-    A viewer reading the toggles has no way to know that the three defenses
-    are different *kinds* of control, and the obvious assumption — three
-    checkboxes, three things that stop attacks — is wrong about D1. This
-    replaces an older test that required the page to mention the eval; the
-    eval is no longer referenced in the UI, but the property that test was
-    really protecting, that the page does not overstate D1, still holds.
-    """
-    markup = HTML.split("<script")[0].lower()
-    d1 = markup[markup.index("<strong>d1</strong>"):]
-    d1 = d1[:d1.index("</li>")]
-    disclaimers = ("blocks nothing", "never blocks", "cannot stop anything",
-                   "can only ask", "does not block")
-    assert any(d in d1 for d in disclaimers), (
-        f"the D1 description never says D1 cannot stop anything: {d1!r}"
-    )
-    for overclaim in ("d1 blocks", "d1 stops", "d1 refuses", "d1 prevents"):
-        assert overclaim not in markup, f"the page claims {overclaim!r}"
-
-    # The comparison table has to agree with the prose. D1 is the only one
-    # whose outcome is decided by the model rather than by code or a person,
-    # and that row is what stops three checkboxes reading as three of the
-    # same kind of control.
-    assert "determined by" in markup, "the comparison table lost its 'determined by' row"
-    assert "the model" in markup, (
-        "the table no longer says D1's outcome is decided by the model"
-    )
-
-
 @pytest.mark.parametrize(
     "sink",
     ["innerHTML", "outerHTML", "insertAdjacentHTML", "document.write", "eval(", "new Function("],
@@ -143,6 +112,35 @@ def test_no_html_injection_sinks(sink):
     script = HTML.split("<script")[1]
     assert sink not in script, f"{sink} is an HTML/JS injection sink; use textContent"
 
+
+def test_the_tag_defense_is_not_described_as_blocking_anything():
+    """Tagging never stops a call; the model does or does not comply.
+
+    The three controls differ by *who decides*, and the bullets are the only
+    place that distinction is made now that the comparison table is gone. If
+    the tag bullet ever stops saying the model decides, three checkboxes in a
+    row read as three of the same kind of control again.
+    """
+    markup = HTML.split("<script")[0].lower()
+
+    tags = markup[markup.index("defense based on tags:"):]
+    tags = tags[:tags.index("</li>")]
+    assert "leave llm to decide" in tags or "the model decides" in tags, (
+        f"the tag bullet no longer says the model is what decides: {tags!r}"
+    )
+    for overclaim in ("d1 blocks", "d1 stops", "d1 refuses", "d1 prevents",
+                      "tags block", "tagging blocks"):
+        assert overclaim not in markup, f"the page claims {overclaim!r}"
+
+    review = markup[markup.index("defense based on human review:"):]
+    review = review[:review.index("</li>")]
+    assert "human decide" in review, "the review bullet does not say a human decides"
+
+    context = markup[markup.index("defense based on corporate context:"):]
+    context = context[:context.index("</li>")]
+    assert "without human intervention" in context, (
+        "the context bullet no longer says it acts without a human"
+    )
 
 def test_rendered_values_go_through_textcontent():
     assert "textContent" in HTML
@@ -303,8 +301,8 @@ def test_boot_never_selects_a_mode_the_page_does_not_offer():
 
 def test_a_defense_that_touched_nothing_is_not_counted_as_having_acted():
     """D1 annotates every retrieval it is enabled for, wrapping nothing when
-    no chunk is attacker-controllable — Case 4 is exactly that, because the
-    trust map calls the injected field internal.
+    no chunk is attacker-controllable — S5 is exactly that, because the trust
+    map calls its injected field internal.
 
     Recording that as "D1 acted" would let the third verdict tell a viewer
     that D1 tagged the untrusted text when it touched none, which is the
@@ -316,27 +314,6 @@ def test_a_defense_that_touched_nothing_is_not_counted_as_having_acted():
     assert "trigger_chunks" in guard, (
         "a defense is recorded as having acted without checking it touched anything"
     )
-
-
-def test_every_case_says_what_is_worth_watching():
-    """Cases 3 and 4 both end in a red verdict.
-
-    Red reads as "broken". Case 3's refusal is the cost of the rule and Case
-    4's silence is the blind spot — both are findings, and a viewer who is not
-    told that reads them as the demo failing. Every case carries the line, not
-    just those two, so the framing is not special pleading for the awkward
-    ones.
-    """
-    import app as app_module
-
-    for scenario_id in app_module.UI_SCENARIOS:
-        watch = app_module.load_scenario(scenario_id).get("watch_for", "").strip()
-        assert watch, f"{scenario_id} has no watch_for line"
-        assert len(watch.split()) >= 8, f"{scenario_id}'s watch_for is too thin: {watch!r}"
-
-    assert 'id="scenario-watch"' in HTML, "the page has nowhere to render it"
-    script = HTML.split("<script")[1].split("</script>")[0]
-    assert "watch_for" in script, "the page never reads watch_for"
 
 
 def test_the_memory_panel_does_not_claim_everything_in_it_is_quarantined():
@@ -352,9 +329,12 @@ def test_the_memory_panel_does_not_claim_everything_in_it_is_quarantined():
     assert "nothing here is recalled by a later run" not in head, (
         "the panel still promises that every row in it is quarantined"
     )
-    script = HTML.split("<script")[1].split("</script>")[0]
-    render = script[script.index("function renderRecords"):]
-    render = render[:render.index("\n  }")]
-    assert "long-term" in render and "held for review" in render, (
-        "a memory row does not say whether a later run will see it"
+    # The legend carries the meaning once; the rows name only their state.
+    # Collapsed whitespace, because the markup wraps these across lines.
+    legend = re.sub(r"\s+", " ", head)
+    assert "saved in long-term memory — a later run will recall it" in legend, (
+        "the legend no longer says what an auto-updated fact does"
+    )
+    assert "held for review — if reject, a later run will not see it" in legend, (
+        "the legend no longer says what a held fact does"
     )

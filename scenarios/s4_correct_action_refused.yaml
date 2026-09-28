@@ -14,8 +14,6 @@ description: >
   execute while attacker-controllable content is in context. The rule is
   working precisely as designed.
 
-watch_for: >-
-  This is the cost, not a failure. There is no attacker; closing this alert is the correct call, and D3 refuses it anyway — as it would on 25 of the 26 alerts here.
 
 alert_id: ALR-1061
 
