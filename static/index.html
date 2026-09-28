@@ -58,6 +58,13 @@
   details.explain > summary { cursor: pointer; list-style-position: outside; }
   details.explain[open] > summary { margin-bottom: 2px; }
   ul.notes { margin: 6px 0 0; padding-left: 18px; }
+  .cmp-wrap { overflow-x: auto; margin: 10px 0 2px; }
+  table.cmp { border-collapse: collapse; font-size: .76rem; color: var(--muted); min-width: 430px; }
+  table.cmp th, table.cmp td {
+    border: 1px solid var(--line); padding: 4px 8px; text-align: left; vertical-align: top;
+  }
+  table.cmp thead th { color: var(--fg); font-weight: 600; }
+  table.cmp tbody th { color: var(--fg); font-weight: 500; white-space: nowrap; }
   ul.notes li { margin: 3px 0; line-height: 1.45; }
   .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 14px; }
   .col { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 12px; min-width: 0; }
@@ -169,19 +176,38 @@
     <details class="explain" open>
       <summary class="hint">What each defense does</summary>
     <ul class="hint notes">
-      <li><strong>D1</strong> wraps attacker-controllable text in tags and tells the
-        model it is data. It <strong>blocks nothing</strong> and the text reaches the
-        model intact — whether it obeys is the model's call, so D1 can fail
-        invisibly.</li>
-      <li><strong>D2</strong> sends a memory write made with untrusted text in context
-        to <strong>quarantine</strong> instead of long-term memory. Nothing is
-        rejected outright: it waits below for you to approve or reject it.</li>
-      <li><strong>D3</strong> <strong>refuses the tool call</strong> outright when
-        untrusted text is in context. The run continues and the action never
-        executes — including when the action was the correct one. It raises an
+      <li><strong>D1</strong> marks text that came from outside and tells the
+        model not to take orders from it. It cannot stop anything — it can only
+        ask, and the text reaches the model word for word.</li>
+      <li><strong>D2</strong> catches a fact the agent picked up while outside
+        text was in view and holds it for you instead of remembering it.
+        Nothing is thrown away — you approve it or reject it below.</li>
+      <li><strong>D3</strong> refuses a dangerous action outright while outside
+        text is in view, even when the action was the right one. It raises an
         approval request; until an approver is connected, a refused action
         stays refused.</li>
     </ul>
+    <div class="cmp-wrap">
+      <table class="cmp">
+        <thead>
+          <tr><th scope="col"></th><th scope="col">D1</th><th scope="col">D2</th><th scope="col">D3</th></tr>
+        </thead>
+        <tbody>
+          <tr><th scope="row">Enforced by</th>
+              <td>the model</td><td>code</td><td>code</td></tr>
+          <tr><th scope="row">Stands between</th>
+              <td>nothing — it only labels</td><td>a fact and memory</td><td>a decision and the tool</td></tr>
+          <tr><th scope="row">How strong</th>
+              <td>a rate, not a promise</td><td>absolute</td><td>absolute</td></tr>
+          <tr><th scope="row">Protects later runs</th>
+              <td>no</td><td>yes — the only one</td><td>no</td></tr>
+          <tr><th scope="row">If it fires wrongly</th>
+              <td>costs nothing</td><td>one click to undo</td><td>blocks real work</td></tr>
+          <tr><th scope="row">When it fails</th>
+              <td>silently — you cannot tell</td><td>visibly</td><td>visibly</td></tr>
+        </tbody>
+      </table>
+    </div>
     </details>
   </section>
 

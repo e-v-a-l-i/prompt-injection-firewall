@@ -110,11 +110,20 @@ def test_the_page_does_not_claim_d1_blocks_anything():
     markup = HTML.split("<script")[0].lower()
     d1 = markup[markup.index("<strong>d1</strong>"):]
     d1 = d1[:d1.index("</li>")]
-    assert "blocks nothing" in d1 or "never blocks" in d1, (
-        "the D1 description does not say that D1 blocks nothing"
+    disclaimers = ("blocks nothing", "never blocks", "cannot stop anything",
+                   "can only ask", "does not block")
+    assert any(d in d1 for d in disclaimers), (
+        f"the D1 description never says D1 cannot stop anything: {d1!r}"
     )
     for overclaim in ("d1 blocks", "d1 stops", "d1 refuses", "d1 prevents"):
         assert overclaim not in markup, f"the page claims {overclaim!r}"
+
+    # The comparison table has to agree with the prose: D1 is the one whose
+    # strength is a rate. If it ever reads "absolute" in that column, the
+    # table is making the claim the bullet refuses to.
+    assert "a rate, not a promise" in markup, (
+        "the comparison table no longer distinguishes D1's strength from the gates'"
+    )
 
 
 @pytest.mark.parametrize(

@@ -1,5 +1,5 @@
 id: S5
-name: The label was wrong
+name: The same hijack, in a field we wrongly trust
 description: >
   The same retrieval hijack as S1, moved one field sideways. The instruction
   is not in a user-agent this time; it is inside the log's `message`, which
