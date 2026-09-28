@@ -83,6 +83,37 @@ independence the implementation did not have.
 
 ---
 
+### After the build — an independent review, and using the thing
+
+The milestones ended and the defects did not. These were found after the
+project was "finished", by a code-quality review run as a separate agent and
+by clicking through the deployed service.
+
+| Defect | Consequence | Found by |
+|---|---|---|
+| The MCP server discards D2's fail-closed signal | `mcp_server.py` filters untrusted provenance to ids that resolve, undoing `chunk_trust`'s deliberate fail-closed (D-012). Same inputs: the web app quarantines, MCP writes to `long_term`. **Still open.** | review |
+| …and the test that exists to prevent it is green | It asserts `app._memory_tier is defenses.memory_tier` — *function identity*, not behavioural equivalence. The decision functions are shared; the state machine that computes their inputs is a second copy, and that is what drifted. | review |
+| `MF_DEFENSES` fails **open** | A typo — `all`, `D1,D2,D#` — silently yields all three defenses off. The opposite of the rule this project wrote down for `RATE_LIMIT_PER_MIN` (§2.3). **Still open.** | review |
+| D2 named clean memory records as the chunks that triggered a quarantine | `chunk_trust` fails closed, so every unresolvable `mem-…` id looked attacker-controllable. D3 already did this correctly and said why, 200 lines earlier. Fixed. | review |
+| The spend cap charged runs that cost nothing | A replay makes no API call. One hands-free pass of the four cases reports ~107k tokens against a 150k cap, so a visitor got **one** pass and then met "Token budget reached" for the rest of the session — and `Reset session` does not clear spend, by design. Fixed. | using it |
+| The page promised an approval button that does not exist | D3 emitted an `approval_request` id that no endpoint consumes, under the title "human approval required". | review |
+
+Two of these are worth more than their severity.
+
+**The identity test is §2.1 again, one level up.** A component that reports on
+itself reports in its own favour — and here the *test* was the component. It
+proves the two surfaces share the same decision functions, which they do, and
+it was cited in the rationale as evidence that divergence gets caught. It had
+not caught anything, because the divergence is in the inputs, not the rules.
+The claim has been removed from the rationale rather than left standing.
+
+**The spend cap is §2.3 again.** "Fail safe" was reasoned about carefully for
+mode and for the rate limit, and the token cap was written before replays
+carried real usage. Once they did (D-053), the guardrail began firing on the
+one code path that cannot cost anything — the guardrail becoming the outage,
+which is the exact failure already recorded for the run-slot leak in M4. It
+was found by a person using the demo, not by 530 tests.
+
 ## 2. Five patterns worth carrying forward
 
 ### 2.1 A component that reports on itself will report in its own favour

@@ -178,9 +178,9 @@
         rejected outright: it waits below for you to approve or reject it.</li>
       <li><strong>D3</strong> <strong>refuses the tool call</strong> outright when
         untrusted text is in context. The run continues and the action never
-        executes — including when the action was the correct one. It records
-        that a human would have to approve it; routing that request to a
-        reviewer is not wired up yet.</li>
+        executes — including when the action was the correct one. It raises an
+        approval request; until an approver is connected, a refused action
+        stays refused.</li>
     </ul>
     </details>
   </section>
@@ -394,8 +394,8 @@
     }
     if ((outcome.approval_requests || []).length) {
       box.appendChild(el("div", "hint",
-        outcome.approval_requests.length + " action(s) would need human approval — " +
-        "the request is recorded; routing it to a reviewer is not wired up yet"));
+        outcome.approval_requests.length + " action(s) raised an approval request — " +
+        "until an approver is connected, they stay refused"));
     }
     container.appendChild(box);
   }

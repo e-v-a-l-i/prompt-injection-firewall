@@ -1051,3 +1051,44 @@ throttled. Worth knowing before recording, not after.
 - **D-061 and D-071 keep the old name in their text.** They are the record of
   what was decided at the time; rewriting them would leave the entries around
   them referring to a name that appears nowhere.
+
+### D-075 The spend cap bills model calls, not replays
+- **Defect:** `SESSION_TOKEN_CAP` charged every run, including replays. A
+  replay makes no API call, and one hands-free pass of the four demo cases
+  reports ~107,000 tokens against the deployed cap of 150,000 — so a visitor
+  got a single pass and then met "Token budget reached" on every subsequent
+  run. `/api/reset` clears memory and deliberately not spend (D-051), so the
+  only way out was a new cookie. Found by using the deployed service, not by
+  the 530 tests.
+- **Decision:** the cap applies to clients that reach a model. `bills_tokens()`
+  excludes `replay` and `mock`. Usage is still measured and still reported in
+  the trace — D-053's reason for recording real numbers was fidelity in the
+  trace, which is untouched.
+- **Why this is the right direction:** the cap exists to bound spend on a
+  public URL (§7). A path that cannot spend anything is a path it has no
+  business limiting, and limiting it turned the guardrail into the outage —
+  the same shape as the run-slot leak in D-060.
+- **Tests:** the two existing cap tests drove the mechanism through `mock`, so
+  they now bill explicitly and keep testing the cap rather than the exclusion.
+  A new test runs three full passes in one session and asserts no run ends in
+  `token_cap`; another pins which clients bill.
+
+### D-076 Known-open defects at hand-off
+Two findings from the post-build review are recorded and **not fixed**. Both
+are in `mcp_server.py`, neither affects the hosted service, and both are
+written up in POSTMORTEM §1 rather than quietly carried.
+
+- **The MCP server discards D2's fail-closed signal.** It filters untrusted
+  provenance to ids that resolve to a chunk, which undoes `chunk_trust`'s
+  deliberate fail-closed on unresolvable ids (D-012). The same provenance
+  quarantines on the web surface and lands in `long_term` over MCP. The fix is
+  to lift the context tracker into `defenses.py` so both surfaces share it,
+  and to replace the identity assertion with a differential test that drives
+  both and compares outcomes.
+- **`MF_DEFENSES` fails open.** An unrecognised value yields all three
+  defenses off, contradicting the rule stated for `RATE_LIMIT_PER_MIN`
+  (D-049). The fix is to fall back to the default set and to test a typo.
+
+Recorded rather than fixed because the hosted demo is the deliverable and
+neither is reachable from it. Shipping with a known defect written down is a
+defensible position; shipping with one not written down is not.
