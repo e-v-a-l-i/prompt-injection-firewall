@@ -833,6 +833,10 @@ def test_t4_5_spend_is_shared_across_arms_via_the_base_session_id(monkeypatch):
 
 def test_t4_6_sse_stream_with_the_cap_tripped_stays_200_and_ends_on_done(monkeypatch):
     """T4 AC6."""
+    # These drive the cap through mock mode, which no longer draws it down
+    # (a run that calls no model costs nothing). The cap mechanism is still
+    # the thing under test, so bill this run explicitly.
+    monkeypatch.setattr(app, "bills_tokens", lambda client: True)
     monkeypatch.setenv("SESSION_TOKEN_CAP", "1")
     c = _client()
     r = c.get("/api/run", params=_BASE_RUN_PARAMS)
@@ -847,6 +851,10 @@ def test_t4_6_sse_stream_with_the_cap_tripped_stays_200_and_ends_on_done(monkeyp
 def test_t4_7_post_api_reset_does_not_clear_accumulated_token_spend(monkeypatch):
     """T4 AC7: per the human-approved settings, /api/reset clears memory
     (§3), not token spend."""
+    # These drive the cap through mock mode, which no longer draws it down
+    # (a run that calls no model costs nothing). The cap mechanism is still
+    # the thing under test, so bill this run explicitly.
+    monkeypatch.setattr(app, "bills_tokens", lambda client: True)
     monkeypatch.setenv("SESSION_TOKEN_CAP", "1")
     c = _client()
     r1 = c.get("/api/run", params=_BASE_RUN_PARAMS)
@@ -1163,3 +1171,31 @@ def test_a_database_deleted_underneath_a_running_process_is_rebuilt(tmp_path, mo
     finally:
         recovered.close()
         app.reset_db()
+
+
+def test_a_replayed_run_does_not_draw_down_the_token_budget(monkeypatch):
+    """The cap bounds spend, and a replay spends nothing.
+
+    Charging replays made the guardrail lock visitors out of the one mode
+    that cannot cost anything: a single hands-free pass of the four demo
+    cases reports ~107k tokens, so against the deployed 150k cap a visitor
+    got one pass and then met "Token budget reached". The usage numbers are
+    still real and still reported (D-053); they are no longer billed.
+    """
+    monkeypatch.setenv("SESSION_TOKEN_CAP", "1")
+    c = _client()
+    for _ in range(3):
+        frames = _parse_sse(c.get("/api/run", params=_BASE_RUN_PARAMS).text)
+        assert frames[-1]["data"]["outcome"]["reason"] != "token_cap", (
+            "a run that calls no model was charged against the spend cap"
+        )
+
+
+def test_bills_tokens_distinguishes_the_clients_that_reach_a_model():
+    assert app.bills_tokens(clients.ReplayClient("S1", "undefended", 1)) is False
+    assert app.bills_tokens(clients.MockClient(gullible=True)) is False
+
+    class _Live:
+        name = "gemini"
+
+    assert app.bills_tokens(_Live()) is True

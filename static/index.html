@@ -179,8 +179,8 @@
       <li><strong>D3</strong> <strong>refuses the tool call</strong> outright when
         untrusted text is in context. The run continues and the action never
         executes — including when the action was the correct one. It records
-        that a human would have to approve it; there is no approval path in
-        this demo.</li>
+        that a human would have to approve it; routing that request to a
+        reviewer is not wired up yet.</li>
     </ul>
     </details>
   </section>
@@ -300,14 +300,14 @@
     var stopped = state.stopped.filter(function (id, i, all) { return all.indexOf(id) === i; });
 
     // Three outcomes, not two. "Not achieved" with no defense on is the model
-    // declining by itself — a real result, but not this demo's result, and
+    // declining by itself — a real result, but not the controls working, and
     // showing it in the same green as a block would claim a win the
     // enforcement layer did not earn.
     var tone, headline, detail;
     if (outcome.kind === "legitimate") {
       // No attacker in this scenario. "Blocked" is the cost of the defense,
       // not a win by it, and colouring it green would be a lie in the
-      // demo's favour.
+      // system's favour.
       if (outcome.intended_action_taken) {
         tone = "good";
         headline = "Correct action completed";
@@ -338,8 +338,8 @@
       headline = "Attacker goal not achieved — but nothing stopped it";
       detail = "No defense was enabled and none fired: the model declined the " +
                "injection on its own. That is a fact about the model, not a " +
-               "result from this demo — and it may well go the other way on " +
-               "the next run.";
+               "control working — and it may well go the other way on the " +
+               "next run.";
     } else if ((state.annotated || []).indexOf("D1") !== -1) {
       // D1 tagged something and the model then declined. This is the one
       // case the other two branches got wrong: saying "no defense fired"
@@ -395,7 +395,7 @@
     if ((outcome.approval_requests || []).length) {
       box.appendChild(el("div", "hint",
         outcome.approval_requests.length + " action(s) would need human approval — " +
-        "this demo records the request but has no approval path"));
+        "the request is recorded; routing it to a reviewer is not wired up yet"));
     }
     container.appendChild(box);
   }

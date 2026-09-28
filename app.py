@@ -435,7 +435,7 @@ def api_run(
 
     try:
         cap = _int_env("SESSION_TOKEN_CAP", 0)
-        budget = cap if cap > 0 else None
+        budget = cap if (cap > 0 and bills_tokens(client)) else None
         # `get_db()` can raise — a locked database, a full disk, EPERM creating
         # the directory. The release used to live only in the generator's
         # `finally`, so anything raising here held the slot forever: four
@@ -1013,6 +1013,25 @@ def _session_base(session_id: str) -> str:
     return str(session_id).split("#", 1)[0]
 
 
+#: Clients that reach a model. Everything else serves bytes off disk.
+_BILLED_CLIENTS_EXCLUDED = frozenset({"replay", "mock"})
+
+
+def bills_tokens(client) -> bool:
+    """Does this run cost anything to serve?
+
+    The cap exists to bound spend on a public URL (§7). A replayed or mocked
+    run makes no API call, so charging it made the guardrail work against the
+    thing it protects: one hands-free pass of the four demo cases is ~107k
+    tokens against a 150k cap, so a visitor got a single pass and then met
+    "Token budget reached" on runs that could not have cost a cent.
+
+    Usage is still measured and still reported in the trace (D-053). It is
+    simply not billed unless a model was actually called.
+    """
+    return getattr(client, "name", "") not in _BILLED_CLIENTS_EXCLUDED
+
+
 def tokens_spent(session_id: str) -> int:
     with _BUDGET_LOCK:
         return _TOKENS_SPENT.get(_session_base(session_id), 0)
@@ -1273,10 +1292,11 @@ def iter_scenario(
                 trace.emit(
                     "blocked",
                     kind="blocked",
-                    # Not "human approval required": this demo has no endpoint
-                    # that consumes the approval id below, so the phrasing
-                    # promised a button that does not exist. D3 is a refusal;
-                    # routing it to a reviewer is the product version of it.
+                    # Not "human approval required": nothing here consumes the
+                    # approval id below, so that phrasing promised a control
+                    # that does not exist. D3 is a refusal; routing the request
+                    # to a reviewer is the next piece of work, not a claim to
+                    # make in the trace.
                     title=f"D3 refused {call.name} — would need human approval",
                     detail={
                         "tool": call.name,
