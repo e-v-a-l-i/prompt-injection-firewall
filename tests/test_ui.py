@@ -118,11 +118,13 @@ def test_the_page_does_not_claim_d1_blocks_anything():
     for overclaim in ("d1 blocks", "d1 stops", "d1 refuses", "d1 prevents"):
         assert overclaim not in markup, f"the page claims {overclaim!r}"
 
-    # The comparison table has to agree with the prose: D1 is the one whose
-    # strength is a rate. If it ever reads "absolute" in that column, the
-    # table is making the claim the bullet refuses to.
-    assert "a rate, not a promise" in markup, (
-        "the comparison table no longer distinguishes D1's strength from the gates'"
+    # The comparison table has to agree with the prose. D1 is the only one
+    # whose outcome is decided by the model rather than by code or a person,
+    # and that row is what stops three checkboxes reading as three of the
+    # same kind of control.
+    assert "determined by" in markup, "the comparison table lost its 'determined by' row"
+    assert "the model" in markup, (
+        "the table no longer says D1's outcome is decided by the model"
     )
 
 
@@ -296,4 +298,21 @@ def test_boot_never_selects_a_mode_the_page_does_not_offer():
     assert "config.replay_available ? \"replay\" : config.mode" not in script, (
         "boot assigns the service default to the picker without checking the "
         "option exists"
+    )
+
+
+def test_a_defense_that_touched_nothing_is_not_counted_as_having_acted():
+    """D1 annotates every retrieval it is enabled for, wrapping nothing when
+    no chunk is attacker-controllable — Case 4 is exactly that, because the
+    trust map calls the injected field internal.
+
+    Recording that as "D1 acted" would let the third verdict tell a viewer
+    that D1 tagged the untrusted text when it touched none, which is the
+    overstatement that verdict exists to prevent.
+    """
+    script = HTML.split("<script")[1].split("</script>")[0]
+    start = script.index("annotated.push")
+    guard = script[max(0, start - 600):start]
+    assert "trigger_chunks" in guard, (
+        "a defense is recorded as having acted without checking it touched anything"
     )

@@ -167,9 +167,9 @@
       </div>
       <div class="row toggles" id="toggles">
         <span class="hint">Defenses for the right column:</span>
-        <label class="toggle"><input type="checkbox" id="d1" checked> D1 untrusted tagging</label>
-        <label class="toggle"><input type="checkbox" id="d2" checked> D2 memory gate</label>
-        <label class="toggle"><input type="checkbox" id="d3" checked> D3 skill policy</label>
+        <label class="toggle"><input type="checkbox" id="d1" checked> D1 untrusted LLM-tagging</label>
+        <label class="toggle"><input type="checkbox" id="d2" checked> D2 memory gate, human in the loop</label>
+        <label class="toggle"><input type="checkbox" id="d3" checked> D3 autonomous SOC</label>
       </div>
     </div>
     <p class="hint" id="scenario-note"></p>
@@ -193,18 +193,14 @@
           <tr><th scope="col"></th><th scope="col">D1</th><th scope="col">D2</th><th scope="col">D3</th></tr>
         </thead>
         <tbody>
-          <tr><th scope="row">Enforced by</th>
-              <td>the model</td><td>code</td><td>code</td></tr>
-          <tr><th scope="row">Stands between</th>
-              <td>nothing — it only labels</td><td>a fact and memory</td><td>a decision and the tool</td></tr>
-          <tr><th scope="row">How strong</th>
-              <td>a rate, not a promise</td><td>absolute</td><td>absolute</td></tr>
-          <tr><th scope="row">Protects later runs</th>
-              <td>no</td><td>yes — the only one</td><td>no</td></tr>
-          <tr><th scope="row">If it fires wrongly</th>
-              <td>costs nothing</td><td>one click to undo</td><td>blocks real work</td></tr>
-          <tr><th scope="row">When it fails</th>
-              <td>silently — you cannot tell</td><td>visibly</td><td>visibly</td></tr>
+          <tr><th scope="row">Defense outcome</th>
+              <td>tagged as “suspicious”</td>
+              <td>memory poisoning rejected</td>
+              <td>autonomous remediation blocked</td></tr>
+          <tr><th scope="row">Determined by</th>
+              <td>the model</td>
+              <td>a human</td>
+              <td>the agent and enterprise context</td></tr>
         </tbody>
       </table>
     </div>
@@ -443,7 +439,17 @@
       card.appendChild(el("div", "hint", "tier: " + event.detail.tier));
     }
     if (event.defense && armState[arm]) {
-      armState[arm].annotated.push(event.defense.id);
+      var acted = event.defense.action === "blocked" ||
+                  event.defense.action === "quarantined" ||
+                  (event.defense.trigger_chunks || []).length > 0;
+      // Only when it did something to something. D1 emits its annotation on
+      // every retrieval it is enabled for, with an empty trigger_chunks when
+      // there was nothing untrusted to wrap — Case 4 is exactly that, because
+      // the trust map calls the injected field internal. Counting that as
+      // "D1 acted" would let the verdict tell a viewer D1 tagged text it
+      // never touched, which is the overstatement the third verdict exists
+      // to avoid.
+      if (acted) armState[arm].annotated.push(event.defense.id);
       if (event.defense.action === "blocked" || event.defense.action === "quarantined") {
         armState[arm].stopped.push(event.defense.id);
       }
