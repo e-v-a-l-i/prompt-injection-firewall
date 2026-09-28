@@ -1,4 +1,4 @@
-"""Memory Firewall — FastAPI application.
+"""Prompt Injection Firewall — FastAPI application.
 
 M0 scope: the skeleton only. `/health` reports liveness and the resolved run
 mode; `/` serves the static placeholder page. The agent loop, retrieval,
@@ -59,7 +59,7 @@ def resolve_mode(raw: str | None = None) -> str:
 #: approve and reject routes, a public schema hands an attacker the tool
 #: surface for free. Nothing in the demo needs it.
 app = FastAPI(
-    title="Memory Firewall",
+    title="Prompt Injection Firewall",
     version=VERSION,
     docs_url=None,
     redoc_url=None,
@@ -1273,7 +1273,11 @@ def iter_scenario(
                 trace.emit(
                     "blocked",
                     kind="blocked",
-                    title=f"D3 blocked {call.name} — human approval required",
+                    # Not "human approval required": this demo has no endpoint
+                    # that consumes the approval id below, so the phrasing
+                    # promised a button that does not exist. D3 is a refusal;
+                    # routing it to a reviewer is the product version of it.
+                    title=f"D3 refused {call.name} — would need human approval",
                     detail={
                         "tool": call.name,
                         "args": dict(call.input or {}),
@@ -1468,10 +1472,17 @@ def _execute_skill(trace, conn, session_id, skill, call, alert_id, defenses=None
         effect["tier"] = record.tier
         # §5 requires the trace to show which chunk triggered a defense, so the
         # untrusted ids are kept whatever the truncation does to the rest.
+        # Only ids that resolve to a chunk, and memory ids kept apart — the
+        # same split D3 makes. chunk_trust fails closed (D-012), so every
+        # unresolvable `mem-...` id would otherwise be reported as a chunk
+        # that triggered the quarantine, naming a clean record as the culprit
+        # in a demo whose subject is provenance attribution.
         untrusted_ids = [
             cid for cid in record.provenance
             if store.chunk_trust(cid, conn) == store.ATTACKER_CONTROLLABLE
+            and store.get_chunk(conn, cid) is not None
         ]
+        untrusted_memory_ids = [cid for cid in record.provenance if cid.startswith("mem-")]
         shown = untrusted_ids + [c for c in record.provenance if c not in untrusted_ids]
         trace.emit(
             "memory_write",
@@ -1496,6 +1507,7 @@ def _execute_skill(trace, conn, session_id, skill, call, alert_id, defenses=None
                         "context; held for human review instead of long-term memory"
                     ),
                     "trigger_chunks": untrusted_ids,
+                    "trigger_memory": untrusted_memory_ids,
                     "memory_id": record.id,
                 }
                 if record.tier == "quarantine"

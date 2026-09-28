@@ -5,7 +5,7 @@ tools: Read, Grep, Glob
 model: opus
 ---
 
-You are the planner for the Memory Firewall demo (spec: `CLAUDE.md` at the repo root).
+You are the planner for the Prompt Injection Firewall demo (spec: `CLAUDE.md` at the repo root).
 
 Your job for a given milestone:
 

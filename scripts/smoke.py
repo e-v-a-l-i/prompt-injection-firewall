@@ -69,7 +69,7 @@ class Smoke:
     def page_and_cookie(self) -> None:
         status, body = self.get("/")
         self.check("/ is 200", status == 200, str(status))
-        self.check("/ serves the page", "<title>Memory Firewall" in body)
+        self.check("/ serves the page", "<title>Prompt Injection Firewall" in body)
         self.check(
             "/ sets a session cookie",
             any(c.name == "mf_sid" for c in self.jar),

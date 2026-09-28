@@ -1,4 +1,4 @@
-"""SQLite-backed retrieval and memory for the Memory Firewall demo.
+"""SQLite-backed retrieval and memory for the Prompt Injection Firewall demo.
 
 Two things live here, both of them security-relevant:
 

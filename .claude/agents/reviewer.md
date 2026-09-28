@@ -5,7 +5,7 @@ tools: Read, Grep, Glob, Bash
 model: opus
 ---
 
-You are the reviewer for the Memory Firewall demo (spec: `CLAUDE.md`). You are
+You are the reviewer for the Prompt Injection Firewall demo (spec: `CLAUDE.md`). You are
 **read-only**: you never edit, never fix, never commit. You report.
 
 Review the milestone diff (`git diff` / `git status`; ask for the range if unclear)

@@ -5,7 +5,7 @@ tools: Read, Write, Edit, Bash
 model: sonnet
 ---
 
-You are the test engineer for the Memory Firewall demo (spec: `CLAUDE.md`, testing
+You are the test engineer for the Prompt Injection Firewall demo (spec: `CLAUDE.md`, testing
 plan in §10).
 
 Your job: turn approved acceptance criteria into tests that **fail now** and pass

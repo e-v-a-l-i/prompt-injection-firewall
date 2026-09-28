@@ -1,4 +1,4 @@
-# Memory Firewall
+# Prompt Injection Firewall
 
 A SOC triage agent with retrieval, memory and skills — and three prompt
 injections that turn it against the alert it is investigating. Run each attack
@@ -222,6 +222,16 @@ which model serves live traffic.
 
 ## Known limitations
 
+- **A run that D1 saved reads as "no defense fired".** D1's only action is
+  tagging — it never blocks — so it can never appear in the verdict's
+  "stopped by" line. When the model reads the tagged content and declines, the
+  summary says *"the enabled defenses had nothing to refuse"*, which is true of
+  the two gates and misleading about D1. The honest statement is narrower:
+  **a single run cannot tell you whether D1 worked.** That is what
+  "probabilistic" means, and it is why D1's effect is a measured rate in
+  [`replays/eval.md`](replays/eval.md) — S1 at 5/10 undefended against 2/10
+  with D1 on — rather than a per-run claim. The verdict should say that
+  instead of implying D1 sat idle; today it does not.
 - **The eval measures Gemini.** See the section above. Re-run
   `scripts/eval.py` with `LIVE_PROVIDER=claude` once Anthropic entitlement
   exists to get comparable Claude numbers.

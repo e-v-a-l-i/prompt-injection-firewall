@@ -1,4 +1,4 @@
-"""Pytest configuration for the Memory Firewall test suite.
+"""Pytest configuration for the Prompt Injection Firewall test suite.
 
 Ensures the repo root is on ``sys.path`` so ``import app`` works no matter
 which directory pytest is invoked from, and provides a shared TestClient

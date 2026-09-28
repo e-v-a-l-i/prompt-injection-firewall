@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Memory Firewall</title>
+<title>Prompt Injection Firewall</title>
 <style>
   :root {
     color-scheme: light dark;
@@ -35,6 +35,9 @@
     font-size: .72rem; text-transform: uppercase; letter-spacing: .04em;
     border: 1px solid var(--line); border-radius: 999px; padding: 2px 9px; color: var(--muted);
   }
+  /* The per-column mode stamp is empty until a run has produced something;
+     an empty pill reads as a stray dot beside the heading. */
+  .badge:empty { display: none; }
   button, select {
     font: inherit; color: inherit; background: var(--card);
     border: 1px solid var(--line); border-radius: 7px; padding: 6px 11px;
@@ -51,6 +54,11 @@
   .toggles { gap: 14px; }
   label.toggle { display: inline-flex; gap: 6px; align-items: center; cursor: pointer; }
   .hint { font-size: .8rem; color: var(--muted); }
+  details.explain { margin-top: 6px; }
+  details.explain > summary { cursor: pointer; list-style-position: outside; }
+  details.explain[open] > summary { margin-bottom: 2px; }
+  ul.notes { margin: 6px 0 0; padding-left: 18px; }
+  ul.notes li { margin: 3px 0; line-height: 1.45; }
   .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 14px; }
   .col { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 12px; min-width: 0; }
   .col-head { border-bottom: 1px solid var(--line); padding-bottom: 8px; margin-bottom: 8px; }
@@ -119,11 +127,10 @@
 <main>
   <header>
     <div class="row spread">
-      <h1>Memory Firewall</h1>
+      <h1>Prompt Injection Firewall</h1>
       <div class="row">
         <select id="mode-select" aria-label="Run mode">
           <option value="replay">replay</option>
-          <option value="mock">mock</option>
           <option value="live">live</option>
         </select>
         <span class="badge" id="mode-badge">…</span>
@@ -134,15 +141,15 @@
       Prompt injection against a SOC triage agent, run twice side by side.
       The left column has no defenses; the right has the ones you pick.
     </p>
-    <p class="hint">
-      <strong>replay</strong> re-plays a real model run recorded earlier — what the
-      model said comes off disk, and the defenses genuinely re-execute on top of it,
-      so the toggles still work. <strong>mock</strong> substitutes a model scripted to
-      obey any instruction it reads, which makes every run identical.
-      <strong>live</strong> calls the model now, and it will not agree with itself
-      every time: these attacks land on some runs and not others, which is the point
-      of measuring them in <code>replays/eval.md</code> rather than asserting them.
-    </p>
+    <details class="explain" open>
+      <summary class="hint">What the modes mean</summary>
+    <ul class="hint notes">
+      <li><strong>replay</strong> — a real model run recorded earlier. The defenses
+        re-execute on playback, so the toggles still work.</li>
+      <li><strong>live</strong> — calls the model now. The same attack lands on some
+        runs and not others.</li>
+    </ul>
+    </details>
   </header>
 
   <section class="controls">
@@ -159,24 +166,36 @@
       </div>
     </div>
     <p class="hint" id="scenario-note"></p>
-    <p class="hint">
-      The eval in <code>replays/eval.md</code> measures D1 alone, because D2 and D3
-      are deterministic code already proven in tests — only D1 depends on how the
-      model behaves.
-    </p>
+    <details class="explain" open>
+      <summary class="hint">What each defense does</summary>
+    <ul class="hint notes">
+      <li><strong>D1</strong> wraps attacker-controllable text in tags and tells the
+        model it is data. It <strong>blocks nothing</strong> and the text reaches the
+        model intact — whether it obeys is the model's call, so D1 can fail
+        invisibly.</li>
+      <li><strong>D2</strong> sends a memory write made with untrusted text in context
+        to <strong>quarantine</strong> instead of long-term memory. Nothing is
+        rejected outright: it waits below for you to approve or reject it.</li>
+      <li><strong>D3</strong> <strong>refuses the tool call</strong> outright when
+        untrusted text is in context. The run continues and the action never
+        executes — including when the action was the correct one. It records
+        that a human would have to approve it; there is no approval path in
+        this demo.</li>
+    </ul>
+    </details>
   </section>
 
   <div class="grid">
     <section class="col">
       <div class="col-head">
-        <h2>Undefended</h2>
+        <h2>Undefended <span class="badge" id="mode-undefended"></span></h2>
         <div class="hint" id="inj-undefended"></div>
       </div>
       <div class="trace" id="trace-undefended"><p class="empty">Pick a scenario and press Run.</p></div>
     </section>
     <section class="col">
       <div class="col-head">
-        <h2>Defended <span class="mono" id="defended-label"></span></h2>
+        <h2>Defended <span class="badge" id="mode-defended"></span> <span class="mono" id="defended-label"></span></h2>
         <div class="hint" id="inj-defended"></div>
       </div>
       <div class="trace" id="trace-defended"><p class="empty">Same attack, defenses on.</p></div>
@@ -261,10 +280,23 @@
     container.appendChild(box);
   }
 
+  var ENDED = {
+    end_turn: "the model stopped on its own",
+    max_steps: "the step limit was reached",
+    token_cap: "the token budget ran out",
+    no_response: "the model returned nothing usable",
+    error: "the run failed"
+  };
+
+  function endedBecause(reason) {
+    return ENDED[reason] || ("ended: " + (reason || "unknown"));
+  }
+
+
   function renderOutcome(container, event, arm) {
     var outcome = event.outcome || {};
     var achieved = outcome.attacker_goal_achieved === true;
-    var state = armState[arm] || { stopped: [], enabled: [] };
+    var state = armState[arm] || { stopped: [], annotated: [], enabled: [] };
     var stopped = state.stopped.filter(function (id, i, all) { return all.indexOf(id) === i; });
 
     // Three outcomes, not two. "Not achieved" with no defense on is the model
@@ -308,10 +340,23 @@
                "injection on its own. That is a fact about the model, not a " +
                "result from this demo — and it may well go the other way on " +
                "the next run.";
+    } else if ((state.annotated || []).indexOf("D1") !== -1) {
+      // D1 tagged something and the model then declined. This is the one
+      // case the other two branches got wrong: saying "no defense fired"
+      // states as fact that D1 was idle, when D1 is the only defense that
+      // could have acted and may be the reason there was nothing to refuse.
+      // "Stopped by D1" would be the worse lie — a single run cannot connect
+      // the tagging to the refusal, which is what probabilistic means.
+      tone = "neutral";
+      headline = "Attacker goal not achieved — nothing was refused";
+      detail = "D1 tagged the untrusted text as data, and the model then " +
+               "declined to act on it. Whether the tagging is the reason " +
+               "cannot be told from one run — that is what makes D1 " +
+               "probabilistic. No gate was asked to refuse anything.";
     } else {
       tone = "neutral";
       headline = "Attacker goal not achieved — no defense fired";
-      detail = "The enabled defenses had nothing to refuse; the model did not " +
+      detail = "Nothing was tagged and no gate was reached: the model did not " +
                "attempt the attacker's action.";
     }
 
@@ -325,7 +370,7 @@
         "call, or an empty response). This is not evidence that it declined."));
     }
     box.appendChild(el("div", "hint", "alert " + (outcome.alert_status || "?") +
-      " · ended: " + (outcome.reason || "?")));
+      " · " + endedBecause(outcome.reason)));
     if (outcome.reason === "token_cap") {
       box.appendChild(el("div", "hint",
         "This session reached its token budget, so the run stopped early. " +
@@ -349,7 +394,8 @@
     }
     if ((outcome.approval_requests || []).length) {
       box.appendChild(el("div", "hint",
-        outcome.approval_requests.length + " action(s) awaiting human approval"));
+        outcome.approval_requests.length + " action(s) would need human approval — " +
+        "this demo records the request but has no approval path"));
     }
     container.appendChild(box);
   }
@@ -387,6 +433,8 @@
   function closeStreams() {
     streams.forEach(function (s) { try { s.close(); } catch (e) {} });
     streams = [];
+    inFlight = 0;
+    setBusy(0);
   }
 
   function startRun(arm, scenarioId, stage) {
@@ -416,6 +464,9 @@
 
     var source = new EventSource("/api/run?" + params.join("&"));
     streams.push(source);
+    setBusy(1);
+    var settled = false;
+    function settle() { if (!settled) { settled = true; setBusy(-1); } }
 
     EVENT_TYPES.forEach(function (type) {
       // Named SSE events do not fire onmessage, so every type needs its own
@@ -426,6 +477,7 @@
         renderEvent(arm, event, injection);
         if (event.type === "done") {
           source.close();
+          settle();
           if (stage === 1 && (scenario.stages || 1) > 1) {
             // stage 2 still to come; not finished yet
           } else if (window.__runDone) {
@@ -444,6 +496,7 @@
 
     source.onerror = function () {
       source.close();
+      settle();
       // Without this a run that cannot start leaves a permanently blank
       // column and no indication that anything went wrong.
       var trace = byId("trace-" + arm);
@@ -463,6 +516,10 @@
     ["undefended", "defended"].forEach(function (arm) {
       clear(byId("trace-" + arm));
       byId("inj-" + arm).textContent = "Injection: " + ((scenario.injection || {}).location || "—");
+      // Stamped at run time, not read at render time: switching the dropdown
+      // after a run would otherwise relabel a finished trace with a mode that
+      // did not produce it.
+      byId("mode-" + arm).textContent = byId("mode-select").value;
     });
     startRun("undefended", scenarioId, 1);
     startRun("defended", scenarioId, 1);
@@ -522,7 +579,15 @@
 
   // --- boot ---------------------------------------------------------------
 
+  function foldExplainersOnNarrowScreens() {
+    if (!window.matchMedia || !window.matchMedia("(max-width: 700px)").matches) return;
+    var blocks = document.querySelectorAll("details.explain");
+    for (var i = 0; i < blocks.length; i++) blocks[i].removeAttribute("open");
+  }
+
+
   function boot() {
+    foldExplainersOnNarrowScreens();
     fetch("/api/config", { credentials: "same-origin" })
       .then(function (r) { return r.json(); })
       .then(function (config) {
@@ -537,12 +602,15 @@
           replayOption.disabled = true;
           replayOption.textContent = "replay (no recordings)";
         }
-        // Prefer the recorded real runs. The service default (config.mode) is
-        // what an *unspecified* run falls back to, which is not the same
-        // question as what this page should do, and showing it as a status
-        // badge beside a dropdown set to something else said the demo was
-        // doing one thing while it did another.
-        select.value = config.replay_available ? "replay" : config.mode;
+        // Prefer the recorded real runs. The service default (config.mode)
+        // is what an *unspecified* run falls back to, which is a different
+        // question from what this page should do — and it may be a mode the
+        // page no longer offers, which would leave the select blank.
+        var preferred = config.replay_available ? "replay" : "live";
+        var chosen = select.querySelector('option[value="' + preferred + '"]');
+        select.value = (chosen && !chosen.disabled)
+          ? preferred
+          : ((select.querySelector("option:not([disabled])") || {}).value || "replay");
         describeMode();
       });
 
@@ -627,6 +695,16 @@
             "by a stranger — and that label was wrong." }
   ];
 
+  var inFlight = 0;
+
+  function setBusy(delta) {
+    inFlight = Math.max(0, inFlight + delta);
+    var button = byId("run");
+    button.disabled = inFlight > 0;
+    button.textContent = inFlight > 0 ? "Running…" : "Run both";
+  }
+
+
   var autoplayState = null;
 
   function showCaption(step, text) {
@@ -700,13 +778,11 @@
   function startAutoplay() {
     document.body.classList.add("autoplay");
     autoplayState = { index: 0, finished: {} };
-    // The recorded real runs, so a hands-free capture is a capture of the
-    // model actually doing this rather than of a mock scripted to. They are
-    // fixed files, so the take is repeatable either way; mock is the fallback
-    // only if the recordings are missing.
+    // The recorded real runs: a hands-free capture of the model actually
+    // doing this, and repeatable because the files are fixed.
     var select = byId("mode-select");
     var replayOption = select.querySelector('option[value="replay"]');
-    select.value = (replayOption && !replayOption.disabled) ? "replay" : "mock";
+    if (replayOption && !replayOption.disabled) select.value = "replay";
     describeMode();
     ["d1", "d2", "d3"].forEach(function (id) { byId(id).checked = true; });
     byId("defended-label").textContent = defendedLabel();
@@ -717,7 +793,6 @@
 
   var MODE_COPY = {
     replay: "recorded real run",
-    mock: "scripted model",
     live: "calling the model now"
   };
 

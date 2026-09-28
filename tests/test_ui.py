@@ -93,13 +93,28 @@ def test_static_directory_is_still_not_served():
     assert client.get("/").status_code == 200
 
 
-def test_index_is_valid_enough_to_parse_and_mentions_the_eval_difference():
-    """The UI defends with all three by default while the eval measures D1
-    alone (D-035). If the page does not say so, the two tell different
-    stories and a viewer cannot reconcile them."""
+def test_index_is_valid_enough_to_parse():
     assert HTML.count("<html") == 1 and HTML.count("</html>") == 1
-    assert "eval" in HTML.lower()
-    assert "D1 alone" in HTML or "measures D1" in HTML
+
+
+def test_the_page_does_not_claim_d1_blocks_anything():
+    """D1 tags; it never refuses a call and never holds anything for review.
+
+    A viewer reading the toggles has no way to know that the three defenses
+    are different *kinds* of control, and the obvious assumption — three
+    checkboxes, three things that stop attacks — is wrong about D1. This
+    replaces an older test that required the page to mention the eval; the
+    eval is no longer referenced in the UI, but the property that test was
+    really protecting, that the page does not overstate D1, still holds.
+    """
+    markup = HTML.split("<script")[0].lower()
+    d1 = markup[markup.index("<strong>d1</strong>"):]
+    d1 = d1[:d1.index("</li>")]
+    assert "blocks nothing" in d1 or "never blocks" in d1, (
+        "the D1 description does not say that D1 blocks nothing"
+    )
+    for overclaim in ("d1 blocks", "d1 stops", "d1 refuses", "d1 prevents"):
+        assert overclaim not in markup, f"the page claims {overclaim!r}"
 
 
 @pytest.mark.parametrize(
@@ -211,4 +226,65 @@ def test_the_page_is_revalidated_rather_than_served_from_cache():
     cache_control = response.headers.get("cache-control", "")
     assert "no-cache" in cache_control, (
         f"/ is cacheable without revalidation: {cache_control!r}"
+    )
+
+
+def test_a_declined_run_with_d1_on_is_distinguished_from_no_defense_at_all():
+    """Three not-achieved outcomes, not two.
+
+    D1 never blocks, so it can never appear in a "stopped by" headline. The
+    verdict used to collapse two different situations into "no defense fired":
+    D1 tagged the untrusted text and the model then declined, versus nothing
+    was applied at all. The first states as fact that D1 was idle when D1 is
+    the only defense that could have acted.
+
+    Asserted structurally, not on copy: the branch must key on D1 having
+    annotated the run, and the three not-achieved cases must produce three
+    different headlines. There is no JS seam to call these through, so this
+    checks that the distinction exists rather than how it is worded.
+    """
+    script = HTML.split("<script")[1].split("</script>")[0]
+    start = script.index("function renderOutcome")
+    body = script[start:script.index("\n  function ", start + 1)]
+
+    assert "annotated" in body, (
+        "renderOutcome does not consult which defenses annotated the run, so a "
+        "run D1 acted on cannot be told from one it did not"
+    )
+
+    headlines = re.findall(r'headline = "([^"]+)"', body)
+    not_achieved = [h for h in headlines if "not achieved" in h]
+    assert len(not_achieved) >= 3, (
+        f"expected three distinct not-achieved verdicts, found {not_achieved!r}"
+    )
+    assert len(set(not_achieved)) == len(not_achieved), (
+        f"two not-achieved branches share a headline: {not_achieved!r}"
+    )
+
+
+def test_the_page_offers_only_real_model_runs():
+    """`mock` is a test double, not a mode a viewer should pick.
+
+    Everything the page can run is now either a recorded real run or a live
+    one. The scripted mock still backs the whole test suite and still answers
+    `?mode=mock` on the API — it is just not something the demo offers, because
+    a viewer choosing it would be shown a model with no judgement and no way
+    to know that from the screen.
+    """
+    head = HTML.split("<script")[0]
+    options = re.findall(r'<option value="([^"]+)"', head)
+    assert "mock" not in options, f"the mode picker still offers mock: {options}"
+    assert set(options) == {"replay", "live"}, options
+
+
+def test_boot_never_selects_a_mode_the_page_does_not_offer():
+    """Setting `select.value` to an absent option blanks the control.
+
+    The service default may be `mock`, which the picker no longer lists, so
+    boot must not assign it straight through.
+    """
+    script = HTML.split("<script")[1].split("</script>")[0]
+    assert "config.replay_available ? \"replay\" : config.mode" not in script, (
+        "boot assigns the service default to the picker without checking the "
+        "option exists"
     )

@@ -1,4 +1,4 @@
-# Memory Firewall — decision log
+# Prompt Injection Firewall — decision log
 
 Key tradeoffs, recorded as they are made (§12). Format:
 
@@ -1032,3 +1032,22 @@ Measured after the change: autoplay is **65 seconds**, an even 15.6s per case.
 The earlier "about 90 seconds" was an estimate, and a first attempt to measure
 it read three minutes — an artefact of a hidden browser tab, where timers are
 throttled. Worth knowing before recording, not after.
+
+### D-074 Renamed to Prompt Injection Firewall
+- **Decision:** the project is *Prompt Injection Firewall*. This is the third
+  name (D-061 renamed it to Project Injection Firewall, D-071 reverted it to
+  Memory Firewall) and the churn is worth admitting rather than hiding.
+- **Why this one holds up:** "Memory Firewall" names D2 — one defense of three.
+  The demo's subject is prompt injection against a retrieval-and-memory agent,
+  and two of the four cases (S4, S5) have nothing to do with memory at all.
+  The name a reader meets should describe the whole, not its middle third.
+- **What did not change, deliberately:** the Cloud Run service id
+  (`memory-firewall`), the live URL it determines, the GitHub repository name,
+  and the on-disk database path. A Cloud Run service cannot be renamed — you
+  deploy a new one and the old URL dies — and that URL is a submitted
+  deliverable cited from the README, the run sheet and a test. Breaking a live
+  link to make an identifier match a display name is a bad trade, and the
+  README says so where a reader would otherwise wonder.
+- **D-061 and D-071 keep the old name in their text.** They are the record of
+  what was decided at the time; rewriting them would leave the entries around
+  them referring to a name that appears nowhere.

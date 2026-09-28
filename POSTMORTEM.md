@@ -1,4 +1,4 @@
-# Postmortem — building Memory Firewall
+# Postmortem — building Prompt Injection Firewall
 
 A demo about prompt injection, built in five milestones with an agentic SDLC:
 a planner, a test engineer, a red teamer and a reviewer, with a human approval
@@ -127,8 +127,9 @@ them.
 
 ### 2.4 "Not achieved" is not "defended", and the conflation recurs at every layer
 
-This one defect appeared three times, in three different artefacts, and had to
-be fixed three times:
+This one defect appeared four times, in four different artefacts. Three were
+fixed during the build; the fourth was found after it, and is documented rather
+than fixed:
 
 1. **The scenario matrix** — fixtures the gullible mock simply cannot drive
    (base64, homoglyphs, zero-width) were failing for harness reasons. Fixed by
@@ -139,9 +140,30 @@ be fixed three times:
    defenses enabled, which is the model declining, not the demo working. Fixed
    by a third, amber verdict state that says so in words.
 
-Each time it looked like a local problem. It was one problem wearing three
+4. **The defended column, found after the project was finished.** The three
+   fixes above all addressed the case where *no* defense was enabled. The same
+   conflation survived on the other side: with D1 on and the model declining,
+   the verdict reads "no defense fired — the enabled defenses had nothing to
+   refuse". D1 had in fact tagged every untrusted chunk; it simply cannot
+   appear in a "stopped by" line, because its only action is `tagged` and the
+   UI counts `blocked` and `quarantined`. The wording states as fact that D1
+   was idle.
+
+   This one resists the obvious fix, which is why it is the most interesting
+   of the four. "Stopped by D1" would be a worse lie than the current text: a
+   single run genuinely cannot attribute a model's refusal to the tagging, and
+   pretending otherwise is the exact overclaim the whole project is built to
+   avoid. The correct verdict is a third amber state that says D1 was applied,
+   the model declined, and the two cannot be connected from one run — pointing
+   at the measured rate instead. It is documented as a known limitation rather
+   than fixed, on the grounds that the limitation is the more honest artifact.
+
+Each time it looked like a local problem. It was one problem wearing four
 costumes, and the cheapest early fix would have been a vocabulary: *achieved*,
-*blocked by X*, *failed for a reason that is not X*.
+*blocked by X*, *failed for a reason that is not X*. The fourth costume also
+shows the vocabulary was still one word short — there is no term for
+*a probabilistic control was applied and the outcome is consistent with it
+having worked*.
 
 ### 2.5 Tests inherit the assumptions of whoever briefed them
 
