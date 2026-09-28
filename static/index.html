@@ -38,6 +38,9 @@
   /* The per-column mode stamp is empty until a run has produced something;
      an empty pill reads as a stray dot beside the heading. */
   .badge:empty { display: none; }
+  .verdict-line { font-size: .84rem; margin-top: 2px; }
+  .verdict-line.ok { color: var(--ok); }
+  .verdict-line.bad { color: var(--danger); }
   button, select {
     font: inherit; color: inherit; background: var(--card);
     border: 1px solid var(--line); border-radius: 7px; padding: 6px 11px;
@@ -234,8 +237,8 @@
 
   <section class="panel">
     <div class="row spread">
-      <h2>Quarantine</h2>
-      <span class="hint">Facts held for human review — nothing here is recalled by a later run.</span>
+      <h2>What the agent remembered</h2>
+      <span class="hint">Both columns. Long-term facts are recalled by a later run; quarantined ones are not.</span>
     </div>
     <div id="quarantine"><p class="empty">Nothing saved yet.</p></div>
   </section>
@@ -582,7 +585,12 @@
     records.forEach(function (record) {
       var box = el("div", "record");
       box.appendChild(el("div", null, record.content));
-      box.appendChild(el("div", "hint", arm + " · " + record.tier + " · " + record.status +
+      var kept = record.tier === "quarantine"
+        ? "held for review — a later run will not see it"
+        : "in long-term memory — a later run will recall it";
+      box.appendChild(el("div", "verdict-line " + (record.tier === "quarantine" ? "ok" : "bad"),
+                         arm + " · " + kept));
+      box.appendChild(el("div", "hint", record.tier + " · " + record.status +
         " · trust: " + record.trust));
       if ((record.provenance || []).length) {
         box.appendChild(el("div", "hint mono", "from: " + record.provenance.slice(0, 3).join(", ")));

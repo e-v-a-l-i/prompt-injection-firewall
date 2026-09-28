@@ -337,3 +337,24 @@ def test_every_case_says_what_is_worth_watching():
     assert 'id="scenario-watch"' in HTML, "the page has nowhere to render it"
     script = HTML.split("<script")[1].split("</script>")[0]
     assert "watch_for" in script, "the page never reads watch_for"
+
+
+def test_the_memory_panel_does_not_claim_everything_in_it_is_quarantined():
+    """The panel lists both arms' memory, not only the quarantined rows.
+
+    It used to be headed "Quarantine" and subtitled "nothing here is recalled
+    by a later run", which was false of the row that matters most: the
+    undefended arm's long-term write is exactly what Case 2's second alert
+    goes on to believe. A row with no Approve button sat under a promise that
+    described the row below it.
+    """
+    head = HTML.split("<script")[0]
+    assert "nothing here is recalled by a later run" not in head, (
+        "the panel still promises that every row in it is quarantined"
+    )
+    script = HTML.split("<script")[1].split("</script>")[0]
+    render = script[script.index("function renderRecords"):]
+    render = render[:render.index("\n  }")]
+    assert "long-term" in render and "held for review" in render, (
+        "a memory row does not say whether a later run will see it"
+    )
